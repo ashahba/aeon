@@ -32,6 +32,7 @@
 #include "batch_iterator.hpp"
 #include "batch_decoder.hpp"
 #include "block_loader_file.hpp"
+#include "block_loader_nds.hpp"
 #include "block_manager.hpp"
 #include "log.hpp"
 #include "util.hpp"
@@ -182,6 +183,7 @@ private:
     iterator                                                m_current_iter;
     iterator                                                m_end_iter;
     std::shared_ptr<manifest_file>                          m_manifest;
+    std::shared_ptr<block_loader_nds>                       m_block_loader_nds;
     std::shared_ptr<block_loader_file>                      m_block_loader;
     std::shared_ptr<block_manager>                          m_block_manager;
     std::shared_ptr<batch_iterator>                         m_batch_iterator;
