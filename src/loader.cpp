@@ -106,16 +106,15 @@ void loader::initialize(nlohmann::json& config_json)
     sox_format_init();
 
     if (nervana::manifest_nds::is_likely_json(lcfg.manifest_filename)) {
-        auto manifest = nervana::manifest_nds_builder()
+        m_manifest_nds = nervana::manifest_nds_builder()
                                                 .filename(lcfg.manifest_filename)
                                                 .block_size(lcfg.block_size)
                                                 .elements_per_record(2)
                                                 .make_shared();
 
-        m_block_loader_nds = std::make_shared<block_loader_nds>(manifest.get(), lcfg.block_size);
+        m_block_loader_nds = std::make_shared<block_loader_nds>(m_manifest_nds.get(), lcfg.block_size);
         m_block_manager = make_shared<block_manager>(
             m_block_loader_nds.get(), lcfg.block_size, lcfg.cache_directory, lcfg.shuffle_enable);
-       
     } else {
         // the manifest defines which data should be included in the dataset
         m_manifest = make_shared<manifest_file>(
