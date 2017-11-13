@@ -17,6 +17,8 @@ boundingbox
 ===========
 
 The ``boundingbox`` provider module is designed to produce simple bounding boxes from a set of input annotations.  For provision of more complex information, see the ``localization`` provider module, which uses the same input source type as ``boundingbox``, but generates additional buffers that are appropriate for training protocols needed for Faster-RCNN and SSD.
+Top-left corner of a bounding box is ``xmin,ymin`` and bottom-right corner is ``xmax,ymax``.
+
 
 Input data used to provision bounding box output buffers can be provided via the manifest file as pointers to json annotation files::
 
@@ -54,7 +56,6 @@ Note that one would typically not use a ``boundingbox`` provider in isolation, b
        ],
    }
 
-In case of SSD, the coordinates are normalized.
 To generate these json files from the XML format used by some object localization datasets such as PASCALVOC, see the main neon repository.
 
 The dataloader generates on-the-fly the anchor targets required for training neon's Faster-RCNN model. Several important parameters control this anchor generation process:

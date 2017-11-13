@@ -33,33 +33,34 @@ void test_sampler(float aspect, float scale, string what = "min_jaccard_overlap"
          {"sampler", {{"scale", {scale, scale}}, {"aspect_ratio", {aspect, aspect}}}},
          {"sample_constraint", {{what.c_str(), mv}}}}};
 
-    nlohmann::json js = {{"type", "image"}, {"batch_samplers", batch_samplers}};
+    nlohmann::json js = {
+        {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", false}};
 
     augment::image::param_factory factory(js);
 
-    vector<boundingbox::box> object_bboxes;
-    object_bboxes.emplace_back(0.2, 0.2, 0.6, 0.4, true);
-    object_bboxes.emplace_back(0, 0, 0.4, 0.4, true);
-    object_bboxes.emplace_back(0.5, 0.5, 0.6, 0.6, true);
-    object_bboxes.emplace_back(0.2, 0.2, 0.8, 0.6, true);
-    object_bboxes.emplace_back(0.1, 0.0, 0.9, 1.0, true);
-    object_bboxes.emplace_back(0.0, 0.1, 1.0, 0.9, true);
-    object_bboxes.emplace_back(0.0, 0.0, 1.0, 1.0, true);
-    object_bboxes.emplace_back(0.0, 0.0, 1.0, 1.0, true);
-    object_bboxes.emplace_back(0.345, 0.345, 0.35, 0.35, true);
-    object_bboxes.emplace_back(0.9, 0.9, 0.91, 0.91, true);
-    object_bboxes.emplace_back(0.1, 0.9, 0.15, 0.95, true);
-    object_bboxes.emplace_back(0.9, 0.1, 0.95, 0.15, true);
-    object_bboxes.emplace_back(0.56, 0.17, 0.41 + 0.56, 0.17 + 0.59, true);
+    vector<normalized_box::box> object_bboxes;
+    object_bboxes.emplace_back(0.2, 0.2, 0.6, 0.4);
+    object_bboxes.emplace_back(0, 0, 0.4, 0.4);
+    object_bboxes.emplace_back(0.5, 0.5, 0.6, 0.6);
+    object_bboxes.emplace_back(0.2, 0.2, 0.8, 0.6);
+    object_bboxes.emplace_back(0.1, 0.0, 0.9, 1.0);
+    object_bboxes.emplace_back(0.0, 0.1, 1.0, 0.9);
+    object_bboxes.emplace_back(0.0, 0.0, 1.0, 1.0);
+    object_bboxes.emplace_back(0.0, 0.0, 1.0, 1.0);
+    object_bboxes.emplace_back(0.345, 0.345, 0.35, 0.35);
+    object_bboxes.emplace_back(0.9, 0.9, 0.91, 0.91);
+    object_bboxes.emplace_back(0.1, 0.9, 0.15, 0.95);
+    object_bboxes.emplace_back(0.9, 0.1, 0.95, 0.15);
+    object_bboxes.emplace_back(0.56, 0.17, 0.41 + 0.56, 0.17 + 0.59);
     uint32_t non_full_samples_count = 0;
     for (int i = 0; i < 50; i++)
     {
-        boundingbox::box out = factory.sample_patch(object_bboxes);
+        normalized_box::box out = factory.sample_patch(object_bboxes);
         ASSERT_GE(out.xmin(), 0);
         ASSERT_GE(out.ymin(), 0);
         ASSERT_LE(out.xmax(), 1);
         ASSERT_LE(out.ymax(), 1);
-        if (bbox(0, 0, 1, 1, true) != out)
+        if (normalized_box::box(0, 0, 1, 1) != out)
         {
             EXPECT_FLOAT_EQ(out.width() / out.height(), aspect);
             EXPECT_GT(out.width(), 0);
@@ -116,6 +117,15 @@ TEST(image_augmentation, config)
     EXPECT_FLOAT_EQ(0.0, config.flip_distribution.p());
 }
 
+TEST(image_augmnetation, config_crop_and_batch_sampler)
+{
+    nlohmann::json batch_samplers = {{}};
+    nlohmann::json js             = {
+        {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", true}};
+
+    EXPECT_THROW(augment::image::param_factory factory(js), std::invalid_argument);
+}
+
 TEST(image_augmentation, config_batch_sampler)
 {
     nlohmann::json batch_samplers = {
@@ -131,7 +141,8 @@ TEST(image_augmentation, config_batch_sampler)
            {"max_object_coverage", 0.7}}}},
         {}};
 
-    nlohmann::json js = {{"type", "image"}, {"batch_samplers", batch_samplers}};
+    nlohmann::json js = {
+        {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", false}};
 
     augment::image::param_factory config(js);
 
@@ -233,7 +244,8 @@ TEST(image_augmentation, make_ssd_params_default)
     int output_width  = 200;
     int output_height = 300;
 
-    augment::image::param_factory      factory({});
+    nlohmann::json                     js = {{"type", "image"}, {"crop_enable", false}};
+    augment::image::param_factory      factory(js);
     shared_ptr<augment::image::params> params = factory.make_ssd_params(
         input_width, input_height, output_width, output_height, vector<bbox>());
 
@@ -269,6 +281,7 @@ TEST(image_augmentation, make_ssd_params_transformations)
     }};
     nlohmann::json aug = {{"type", "image"},
                           {"batch_samplers", batch_samplers},
+                          {"crop_enable", false},
                           {"expand_ratio", {4.0f, 4.0f}},
                           {"expand_probability", 1.0f}};
     augment::image::param_factory      factory(aug);
@@ -342,26 +355,27 @@ TEST(image_augmentation, max_sample)
            {"max_object_coverage", 0.7}}}},
         {}};
 
-    nlohmann::json js = {{"type", "image"}, {"batch_samplers", batch_samplers}};
+    nlohmann::json js = {
+        {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", false}};
 
     augment::image::param_factory factory(js);
 
-    vector<boundingbox::box> object_bboxes;
-    object_bboxes.emplace_back(0, 0, 1, 1, true);
-    object_bboxes.emplace_back(0, 0, 0.5, 0.5, true);
-    std::vector<boundingbox::box> output;
+    vector<normalized_box::box> object_bboxes;
+    object_bboxes.emplace_back(0, 0, 1, 1);
+    object_bboxes.emplace_back(0, 0, 0.5, 0.5);
+    std::vector<normalized_box::box> output;
     factory.m_batch_samplers[0].sample_patches(object_bboxes, output);
     EXPECT_EQ(output.size(), max_sample);
 }
 
 TEST(image_augmentation, max_trials)
 {
-    std::default_random_engine e;
-    float                      aspect = 1;
-    float                      scale  = 1;
-    vector<boundingbox::box>   object_bboxes;
-    object_bboxes.emplace_back(0, 0, 1, 1, true);
-    object_bboxes.emplace_back(0, 0, 0.5, 0.5, true);
+    std::default_random_engine  e;
+    float                       aspect = 1;
+    float                       scale  = 1;
+    vector<normalized_box::box> object_bboxes;
+    object_bboxes.emplace_back(0, 0, 1, 1);
+    object_bboxes.emplace_back(0, 0, 0.5, 0.5);
     for (int i = 0; i < 10; i++)
     {
         int            max_trials     = 1 + e() % 100;
@@ -378,11 +392,12 @@ TEST(image_augmentation, max_trials)
                {"max_object_coverage", 0.7}}}},
             {}};
 
-        nlohmann::json js = {{"type", "image"}, {"batch_samplers", batch_samplers}};
+        nlohmann::json js = {
+            {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", false}};
 
         augment::image::param_factory factory(js);
 
-        std::vector<boundingbox::box> output;
+        std::vector<normalized_box::box> output;
         factory.m_batch_samplers[0].sample_patches(object_bboxes, output);
         EXPECT_LE(output.size(), max_trials) << "at iteration " << i;
     }
@@ -403,19 +418,20 @@ TEST(image_augmentation, default_patch)
            {"max_object_coverage", 0.5}}}},
     };
 
-    nlohmann::json js = {{"type", "image"}, {"batch_samplers", batch_samplers}};
+    nlohmann::json js = {
+        {"type", "image"}, {"batch_samplers", batch_samplers}, {"crop_enable", false}};
 
     augment::image::param_factory factory(js);
 
-    vector<boundingbox::box> object_bboxes;
-    object_bboxes.emplace_back(0, 0, 1, 1, true);
-    object_bboxes.emplace_back(0, 0, 0.5, 0.5, true);
-    std::vector<boundingbox::box> output;
+    vector<normalized_box::box> object_bboxes;
+    object_bboxes.emplace_back(0, 0, 1, 1);
+    object_bboxes.emplace_back(0, 0, 0.5, 0.5);
+    std::vector<normalized_box::box> output;
     factory.m_batch_samplers[0].sample_patches(object_bboxes, output);
 
     for (int i = 0; i < output.size(); i++)
     {
-        EXPECT_EQ(output[i], boundingbox::box(0, 0, 1, 1, true)) << "at iteration " << i;
+        EXPECT_EQ(output[i], normalized_box::box(0, 0, 1, 1)) << "at iteration " << i;
     }
 }
 

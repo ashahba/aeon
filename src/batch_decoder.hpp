@@ -34,7 +34,8 @@ public:
                   size_t                                     batch_size,
                   uint32_t                                   thread_count,
                   bool                                       pinned,
-                  const std::shared_ptr<provider_interface>& prov);
+                  const std::shared_ptr<provider_interface>& prov,
+                  uint32_t                                   seed = 0);
 
     virtual ~batch_decoder();
 
@@ -56,7 +57,9 @@ private:
     std::shared_ptr<const provider_interface> m_provider;
     encoded_record_list*                      m_inputs{nullptr};
     fixed_buffer_map*                         m_outputs{nullptr};
-    thread_pool<batch_decoder, &batch_decoder::process> m_thread_pool;
+    std::shared_ptr<thread_pool_queue<batch_decoder, &batch_decoder::process>> m_thread_pool;
     std::function<void(const fixed_buffer_map*)> m_info_handler;
     size_t                                       m_iteration_number{0};
+    std::vector<nervana::random_engine_t>        m_random;
+    bool                                         m_deterministic_mode;
 };

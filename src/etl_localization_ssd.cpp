@@ -23,6 +23,7 @@ using std::invalid_argument;
 using nlohmann::json;
 
 using bbox = boundingbox::box;
+using nbox = normalized_box::box;
 
 localization::ssd::config::config(nlohmann::json js)
 {
@@ -85,19 +86,10 @@ std::shared_ptr<localization::ssd::decoded> localization::ssd::extractor::extrac
 {
     auto rc = std::make_shared<ssd::decoded>();
     auto bb = std::static_pointer_cast<boundingbox::decoded>(rc);
-    bbox_extractor.extract(data, size, bb, cfg.gt_boxes_normalized);
+    bbox_extractor.extract(data, size, bb);
     if (!bb)
     {
         return nullptr;
-    }
-
-    // unnormalize boxes if necessary
-    for (bbox& box : rc->m_boxes)
-    {
-        if (box.normalized())
-        {
-            box = box.unnormalize(bb->width(), bb->height());
-        }
     }
 
     rc->input_image_size  = cv::Size2i(bb->width(), bb->height());
@@ -111,9 +103,6 @@ shared_ptr<localization::ssd::decoded>
                                               shared_ptr<localization::ssd::decoded> mp) const
 {
     mp->gt_boxes = boundingbox::transformer::transform_box(mp->boxes(), settings);
-
-    bbox::normalize_bboxes(mp->gt_boxes, mp->output_image_size.width, mp->output_image_size.height);
-
     return mp;
 }
 
@@ -138,12 +127,13 @@ void localization::ssd::loader::load(const vector<void*>&                       
     for (int i = 0; i < *num_gt_boxes; i++)
     {
         const bbox& gt  = mp->gt_boxes[i];
-        *gt_boxes++     = gt.xmin();
-        *gt_boxes++     = gt.ymin();
-        *gt_boxes++     = gt.xmax();
-        *gt_boxes++     = gt.ymax();
-        *gt_classes++   = gt.label;
-        *gt_difficult++ = gt.difficult;
+        const nbox& ngt = gt.normalize(mp->output_image_size.width, mp->output_image_size.height);
+        *gt_boxes++     = ngt.xmin();
+        *gt_boxes++     = ngt.ymin();
+        *gt_boxes++     = ngt.xmax();
+        *gt_boxes++     = ngt.ymax();
+        *gt_classes++   = gt.label();
+        *gt_difficult++ = gt.difficult();
     }
     for (int i = *num_gt_boxes; i < max_gt_boxes; i++)
     {

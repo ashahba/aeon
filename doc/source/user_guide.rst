@@ -186,7 +186,7 @@ The possible base loader configurations are the following (configurations withou
    shuffle_manifest (bool) | False | Shuffles manifest file contents
    decode_thread_count (int)| 0 | Number of threads to use. If default value 0 is set, Aeon automatically chooses number of threads to logical number of cores diminished by two. To execute on a single thread, use value of 1
    pinned (bool)| False |
-   random_seed (int)| 0 | Set the random seed.
+   random_seed (uint)| 0 | Set not a zero value if you need to have deterministic output. In that case aeon will always produce the same output for given a particular input.
    iteration_mode (string)|"ONCE"| Can be "ONCE", "COUNT", or "INFINITE"
    iteration_mode_count||
    etl||
@@ -225,3 +225,13 @@ The above configuration will, for each image, take a random crop of 224x224 pixe
     train_set = DataLoader(json.dumps(aeon_config))
 
 The backend argument above from neon tells the dataloader where to place the buffers to provision to the model.
+
+Logging
+-------------
+
+There are three levels of logs in aeon:
+* INFO - prints all logs
+* WARNING - prints only warnings and errors
+* ERROR - prints only errors
+Default log level is WARNING. You can set it with `AEON_LOG_LEVEL` environmental variable. For example
+`export AEON_LOG_LEVEL=INFO` sets log level to INFO.
