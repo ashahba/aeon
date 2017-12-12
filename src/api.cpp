@@ -1,5 +1,5 @@
 /*
- Copyright 2017 Nervana Systems Inc.
+ Copyright 2017 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -22,6 +22,13 @@
 #include "structmember.h"
 using namespace nervana;
 using namespace std;
+
+using nlohmann::json;
+
+namespace
+{
+    loader* create_loader(const json& config);
+}
 
 extern "C" {
 
@@ -83,6 +90,7 @@ typedef struct
     PyObject*               batch_size;
     PyObject*               axes_info;
     PyObject*               config;
+    PyObject*               session_id;
     loader*                 m_loader;
     uint32_t                m_i;
     bool                    m_first_iteration;
@@ -105,8 +113,16 @@ static PyObject* DataLoader_iter(PyObject* self)
 static PyObject* DataLoader_iternext(PyObject* self)
 {
     INFO << " aeon_DataLoader_iternext";
-    PyObject* result = NULL;
-    auto      lconf  = loader_config(DL_get_loader(self)->get_current_config());
+    PyObject*      result = NULL;
+    nlohmann::json conf   = DL_get_loader(self)->get_current_config();
+    bool           batch_major{true};
+    try
+    {
+        batch_major = conf.at("batch_major");
+    }
+    catch (nlohmann::detail::out_of_range&)
+    {
+    }
     if (!((aeon_DataLoader*)(self))->m_first_iteration)
         DL_get_loader(self)->get_current_iter()++;
     else
@@ -123,7 +139,7 @@ static PyObject* DataLoader_iternext(PyObject* self)
         int tuple_pos     = 0;
         for (auto&& nm : names)
         {
-            PyObject* wrapped_buf     = wrap_buffer_as_np_array(d[nm], !lconf.batch_major);
+            PyObject* wrapped_buf     = wrap_buffer_as_np_array(d[nm], !batch_major);
             PyObject* buf_name        = Py_BuildValue("s", nm.c_str());
             PyObject* named_buf_tuple = PyTuple_New(buf_tuple_len);
 
@@ -212,6 +228,7 @@ static void DataLoader_dealloc(aeon_DataLoader* self)
     Py_XDECREF(self->batch_size);
     Py_XDECREF(self->axes_info);
     Py_XDECREF(self->config);
+    Py_XDECREF(self->session_id);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -250,12 +267,13 @@ static PyObject* DataLoader_new(PyTypeObject* type, PyObject* args, PyObject* kw
 
         try
         {
-            self->m_loader          = new loader(json_config);
+            self->m_loader          = create_loader(json_config);
             self->m_i               = 0;
             self->m_first_iteration = true;
             self->ndata             = Py_BuildValue("i", self->m_loader->record_count());
             self->batch_size        = Py_BuildValue("i", self->m_loader->batch_size());
             self->config            = PyDict_Copy(dict);
+            self->session_id        = Py_BuildValue("s", self->m_loader->get_session_id());
 
             auto name_shape_list = self->m_loader->get_names_and_shapes();
 
@@ -323,9 +341,9 @@ static PyObject* DataLoader_new(PyTypeObject* type, PyObject* args, PyObject* kw
         catch (std::exception& e)
         {
             // Some kind of problem with creating the internal loader object
-            ERR << "Unable to create internal loader object";
             std::stringstream ss;
             ss << "Unable to create internal loader object: " << e.what() << endl;
+            ERR << "Unable to create internal loader object: " << e.what() << endl;
             ss << "config is: " << json_config << endl;
             PyErr_SetString(PyExc_RuntimeError, ss.str().c_str());
             return NULL;
@@ -375,6 +393,12 @@ static PyMemberDef DataLoader_members[] = {
      offsetof(aeon_DataLoader, config),
      0,
      (char*)"config passed to DataLoader object"},
+    {(char*)"session_id",
+     T_OBJECT_EX,
+     offsetof(aeon_DataLoader, session_id),
+     0,
+     (char*)"ID of DataLoader session object set when remote is defined and no session_id is "
+            "specified"},
     {NULL, NULL, 0, 0, NULL} /* Sentinel */
 };
 
@@ -490,4 +514,14 @@ PyMODINIT_FUNC initaeon(void)
     return m;
 #endif
 }
+}
+
+namespace
+{
+    loader* create_loader(const json& config)
+    {
+        loader_factory     factory;
+        unique_ptr<loader> loader_ptr = factory.get_loader(config);
+        return loader_ptr.release();
+    }
 }

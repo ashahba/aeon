@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -67,6 +67,7 @@ namespace nervana
     std::string dump_default(const std::bernoulli_distribution& v);
     std::string dump_default(nlohmann::json v);
     std::string dump_default(std::vector<nlohmann::json> v);
+    std::string dump_default(nlohmann::json v);
 }
 
 class nervana::interface::config_info_interface

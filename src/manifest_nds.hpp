@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -55,14 +55,13 @@ private:
     const int         m_collection_id;
     const int         m_shard_count;
     const int         m_shard_index;
-    unsigned int      m_object_count;
-    unsigned int      m_block_count;
     uint32_t          m_macrobatch_size;
 };
 
 class nervana::manifest_nds_builder
 {
 public:
+    manifest_nds_builder& filename(const std::string& filename);
     manifest_nds_builder& base_url(const std::string& url);
     manifest_nds_builder& token(const std::string& token);
     manifest_nds_builder& collection_id(size_t collection_id);
@@ -72,9 +71,12 @@ public:
     manifest_nds_builder& shard_index(size_t shard_index);
     manifest_nds_builder& shuffle(bool enable);
     manifest_nds_builder& seed(uint32_t seed);
-    manifest_nds create();
+    manifest_nds                  create();
+    std::shared_ptr<manifest_nds> make_shared();
 
 private:
+    void parse_json(const std::string& filename);
+
     std::string m_base_url;
     std::string m_token;
     size_t      m_collection_id       = -1;
@@ -113,18 +115,15 @@ public:
 
     // NDS manifests doesn't have versions since collections are immutable
     std::string version() override { return ""; }
-private:
     static bool is_likely_json(const std::string filename);
 
+private:
     void load_metadata();
 
     const std::string   m_base_url;
     const std::string   m_token;
     const size_t        m_collection_id;
-    const size_t        m_block_size;
     const size_t        m_elements_per_record;
-    const size_t        m_shard_count;
-    const size_t        m_shard_index;
     size_t              m_record_count;
     size_t              m_block_count;
     network_client      m_network_client;

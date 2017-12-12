@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -47,7 +47,7 @@ TEST(config, throws)
     int            width         = 32;
     size_t         batch_size    = 1;
     string         manifest_root = string(CURDIR) + "/test_data";
-    string         manifest      = manifest_root + "/manifest.csv";
+    string         manifest      = manifest_root + "/manifest.tsv";
     nlohmann::json image         = {{"type", "image"},
                             {"name", "image1"},
                             {"height", height},

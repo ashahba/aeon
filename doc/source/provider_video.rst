@@ -1,5 +1,5 @@
 .. ---------------------------------------------------------------------------
-.. Copyright 2017 Nervana Systems Inc.
+.. Copyright 2017 Intel(R) Nervana(TM)
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
 .. You may obtain a copy of the License at
@@ -46,7 +46,7 @@ Splitting the videos into equal length segments as we did here is not necessary
 in general for the aeon ``DataLoader``, but is helpful for training this
 particular model in neon.
 
-Once preprocessing is complete, a sample manifest CSV file must be created with
+Once preprocessing is complete, a sample manifest TSV file must be created with
 the absolute paths of the videos and the classification labels. For example::
 
   @FILE	ASCII_INT
@@ -67,7 +67,7 @@ The configuration options for the video etl module are:
    :escape: ~
 
    max_frame_count (uint) | *Required* | Maximum number of frames to extract from video. Shorter samples will be zero padded.
-   frame (object) | *Required* | An :doc:`Image configuration <image_etl>` for each frame extracted from the video.
+   frame (object) | *Required* | An :doc:`Image configuration <provider_image>` for each frame extracted from the video.
    name (string) | ~"~" | Name prepended to the output buffer name
 
 The output buffer provisioned to the model from the video module is described below:

@@ -1,5 +1,5 @@
 .. ---------------------------------------------------------------------------
-.. Copyright 2017 Nervana Systems Inc.
+.. Copyright 2017 Intel(R) Nervana(TM)
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
 .. You may obtain a copy of the License at
@@ -23,6 +23,7 @@ For segmentation problems (``type=pixelmask``), the input is an image, and the t
 The manifest file contains paths to the input image, as well as the target image:
 
 .. code-block:: bash
+
     @FILE	FILE
     /image_dir/img1.jpg	/mask_dir/mask1.png
     /image_dir/img2.jpg	/mask_dir/mask2.png

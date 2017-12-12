@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -93,7 +93,8 @@ TEST(DISABLED_localization_rcnn, example)
                              {"etl", {js_image, js_local}},
                              {"augmentation", {js_aug}}};
 
-    auto train_set = nervana::loader{config};
+    loader_factory factory;
+    auto           train_set = factory.get_loader(config);
 }
 
 TEST(localization_rcnn, generate_anchors)

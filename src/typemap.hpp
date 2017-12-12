@@ -1,5 +1,5 @@
 /*
- Copyright 2016-2017 Nervana Systems Inc.
+ Copyright 2016-2017 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -194,6 +194,9 @@ public:
         }
     }
 
+    std::ostream& serialize(std::ostream& out) const;
+    std::istream& deserialize(std::istream& in);
+
 private:
     std::vector<size_t>      m_shape;
     output_type              m_otype;
@@ -206,3 +209,11 @@ private:
     static const std::string m_byte_size_json_name;
     static const std::string m_names_json_name;
 };
+
+std::ostream& operator<<(std::ostream& out, const nervana::shape_type& obj);
+std::istream& operator>>(std::istream& in, nervana::shape_type& obj);
+
+std::ostream& operator<<(std::ostream& out,
+                         const std::vector<std::pair<std::string, nervana::shape_type>>& obj);
+std::istream& operator>>(std::istream& in,
+                         std::vector<std::pair<std::string, nervana::shape_type>>& obj);

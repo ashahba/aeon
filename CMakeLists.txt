@@ -1,11 +1,51 @@
-cmake_minimum_required (VERSION 2.8.11)
+#
+# Copyright 2017 Intel(R) Nervana(TM)
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+cmake_minimum_required(VERSION 2.8.12)
 
 # Set this flag before project definition to avoid using other compiler by gtest
 set(CMAKE_CXX_COMPILER "clang++")
 
-project (aeon)
+project(aeon C CXX)
 
-set(AEON_VERSION 1.1.0)
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
+        "Choose the type of build, options are: Debug, Release, RelWithDebInfo and MinSizeRel"
+        FORCE)
+endif()
+
+set(AEON_VERSION_MAJOR 1)
+set(AEON_VERSION_MINOR 3)
+set(AEON_VERSION_PATCH 0)
+
+set(AEON_BUILD_NUMBER 0)
+
+set(AEON_VERSION ${AEON_VERSION_MAJOR}.${AEON_VERSION_MINOR}.${AEON_VERSION_PATCH}
+                 CACHE STRING "AEON logical version")
+
+add_definitions(-DBUILD_VERSION_MAJOR=${AEON_VERSION_MAJOR}
+                -DBUILD_VERSION_MINOR=${AEON_VERSION_MINOR}
+                -DBUILD_VERSION_PATCH=${AEON_VERSION_PATCH}
+                -DBUILD_BUILD_NUMBER=${AEON_BUILD_NUMBER})
+
+option(ENABLE_AEON_SERVICE "Enable compilation of AEON Service" OFF)
+option(ENABLE_AEON_CLIENT "Enable compilation of AEON Client" ON)
+option(ENABLE_OPENFABRICS_CONNECTOR "Enable OpenFabrics connector for batch exchange between service and client" OFF)
+
+include(cmake/summary.cmake)
+
 if(APPLE)
 set(CMAKE_MACOSX_RPATH 1)
 endif()
@@ -37,7 +77,6 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=inconsistent-missing-override")
@@ -60,11 +99,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-documentation")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-covered-switch-default")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-old-style-cast")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-documentation-unknown-command")
 
 # should remove these
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-conversion")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-member-function")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-conversion")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-float-equal")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-duplicate-enum") # from numpy
@@ -72,9 +113,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-used-but-marked-unused") # from sox
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++11-compat-deprecated-writable-strings")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-double-promotion")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreserved-id-macro")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")
 
+find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(SOX REQUIRED sox)
@@ -98,6 +141,7 @@ include_directories(${CURL_INCLUDE_DIRS})
 link_directories(${CURL_LIBRARY_DIRS})
 
 set(Python_ADDITIONAL_VERSIONS 3.6 3.5 3.4)
+
 find_package(PythonLibs)
 find_package(PythonInterp)
 
@@ -110,24 +154,85 @@ if (PYTHONLIBS_FOUND)
         link_directories(${PYTHON_LIBRARY_DIRS})
         include_directories(SYSTEM ${NUMPY_INCLUDE_DIRS})
         link_directories(${NUMPY_LIBRARY_DIRS})
-    else()
-        message("Numpy not found, Python interface not included")
     endif(NUMPY_FOUND)
 else()
-    message("Python not found, Python interface not included")
-    set(PYTHON_LIBRARIES "")
+    unset(PYTHON_LIBRARIES)
 endif (PYTHONLIBS_FOUND)
+
+if (ENABLE_AEON_SERVICE)
+    # Check for C++ REST SDK from Microsoft
+    find_package(CppRest)
+    if (CPPREST_FOUND)
+        include_directories(${CPPREST_INCLUDE_DIRS})
+        link_directories(${CPPREST_LIBRARY_DIRS})
+    else()
+        set(ENABLE_AEON_SERVICE OFF)
+    endif()
+endif()
+
+if (NOT ENABLE_AEON_SERVICE AND NOT ENABLE_AEON_CLIENT)
+    set(ENABLE_OPENFABRICS_CONNECTOR OFF)
+endif()
+
+if (ENABLE_OPENFABRICS_CONNECTOR)
+    # Check for OpenFabrics Interface
+    find_package(OpenFabrics)
+    if (OPENFABRICS_FOUND)
+        include_directories(${OPENFABRICS_INCLUDE_DIRS})
+        link_directories(${OPENFABRICS_LIBRARY_DIRS})
+    else()
+        set(ENABLE_OPENFABRICS_CONNECTOR OFF)
+    endif()
+endif()
+
+# Check for BOOST components
+find_package(Boost REQUIRED COMPONENTS system filesystem)
+
+include_directories(${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
+
+# Check for OpenSSL
+find_package(OpenSSL REQUIRED)
+
+include_directories(${OPENSSL_INCLUDE_DIRS})
+link_directories(${OPENSSL_LIBRARY_DIRS})
 
 set(TEST_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/test_data)
 
-include_directories(BEFORE gtest/include)
+if (ENABLE_AEON_SERVICE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_AEON_SERVICE")
+    if (ENABLE_OPENFABRICS_CONNECTOR)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_OPENFABRICS_CONNECTOR")
+    endif()
+endif()
+
+if (ENABLE_AEON_CLIENT)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_AEON_CLIENT")
+endif()
+
+# Check for documentation prerequisites
+find_package(LATEX)
+find_package(Doxygen)
+find_package(Sphinx)
+find_package(Breathe)
+
+include_directories(BEFORE gtest/googletest/include)
+include_directories(BEFORE gtest/googlemock/include)
 set(BUILD_SHARED_LIBS off)
 add_subdirectory(gtest)
 set(BUILD_SHARED_LIBS on)
 add_subdirectory(src)
+if (ENABLE_AEON_SERVICE)
+add_subdirectory(src/service)
+endif()
 include_directories(src)
+if (ENABLE_AEON_CLIENT)
+include_directories(src/client)
+endif()
 add_subdirectory(test)
 add_subdirectory(examples)
 add_subdirectory(doc)
-include(clang-format.cmake)
-include(coverage.cmake)
+include(cmake/clang-format.cmake)
+include(cmake/coverage.cmake)
+
+print_configuration_summary()

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this nds except in compliance with the License.
  You may obtain a copy of the License at
@@ -31,9 +31,8 @@
 using namespace std;
 using namespace nervana;
 
-block_loader_nds::block_loader_nds(manifest_nds* manifest, size_t block_size)
+block_loader_nds::block_loader_nds(shared_ptr<manifest_nds> manifest, size_t block_size)
     : async_manager<encoded_record_list, encoded_record_list>{manifest, "block_loader_nds"}
-    , m_manifest{*manifest}
     , m_block_size{0}
     , m_block_count{manifest->block_count()}
     , m_record_count{manifest->record_count()}
@@ -43,16 +42,21 @@ block_loader_nds::block_loader_nds(manifest_nds* manifest, size_t block_size)
 
 nervana::encoded_record_list* block_loader_nds::filler()
 {
-    m_state                    = async_state::wait_for_buffer;
-    encoded_record_list* rc    = get_pending_buffer();
-    encoded_record_list* input = nullptr;
+    m_state                 = async_state::wait_for_buffer;
+    encoded_record_list* rc = get_pending_buffer();
+    m_state                 = async_state::processing;
 
+    encoded_record_list* input = nullptr;
     rc->clear();
-    input = m_manifest.next();
+
+    m_state = async_state::fetching_data;
+    input   = m_source->next();
+    m_state = async_state::processing;
+
     if (input != nullptr)
     {
         input->swap(*rc);
     }
-
+    m_state = async_state::idle;
     return rc;
 }

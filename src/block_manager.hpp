@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -37,11 +37,11 @@ namespace nervana
 class nervana::block_manager : public async_manager<encoded_record_list, encoded_record_list>
 {
 public:
-    block_manager(block_loader_source* file_loader,
-                  size_t               block_size,
-                  const std::string&   cache_root,
-                  bool                 enable_shuffle,
-                  uint32_t             seed = 0);
+    block_manager(std::shared_ptr<block_loader_source> file_loader,
+                  size_t                               block_size,
+                  const std::string&                   cache_root,
+                  bool                                 enable_shuffle,
+                  uint32_t                             seed = 0);
 
     virtual ~block_manager() { finalize(); }
     encoded_record_list* filler() override;

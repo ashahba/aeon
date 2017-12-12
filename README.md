@@ -8,7 +8,7 @@
 
 For fast iteration and model exploration, it is already used by fastest performance deep learning framework [neon](https://github.com/NervanaSystems/neon).
 
-See the new features in our latest release. 
+See the new features in our latest release.
 
 # Getting Started
 
@@ -18,7 +18,7 @@ First grab Aeon's dependencies:
 
 ### Ubuntu (release 14.04 LTS and later):
 
-    apt-get install git clang cmake python-dev python-pip libcurl4-openssl-dev libopencv-dev libsox-dev
+    apt-get install git clang libcurl4-openssl-dev libopencv-dev libsox-dev libboost-filesystem-dev libboost-system-dev
 
 ##### For Python 3.n
 
@@ -27,7 +27,7 @@ First grab Aeon's dependencies:
 ### CentOS (release 7.2 and later):
 
     yum install epel-release
-    yum install git clang gcc-c++ make cmake opencv-devel libcurl-devel sox-devel
+    yum install git clang gcc-c++ make cmake openssl-devel opencv-devel libcurl-devel sox-devel boost-devel boost-filesystem boost-system
 
 ##### For Python 2.7
 
@@ -42,47 +42,11 @@ First grab Aeon's dependencies:
     brew tap homebrew/science
     brew install opencv
     brew install sox
+    brew install boost
 
-### Fedora (before release 25):
+## Distributed Aeon
 
-    sudo dnf install opencv-devel clang libcurl-devel sox-devel
-
-For CentOS 7, the version of Clang available in the EPEL repository is too old
-to understand the GCC flags that the Python extension build system imposes, so
-we build the latest version of Clang from source (after first installing it's
-high and low level build systems)::
-
-    sudo -i
-    # Build CMake
-    cd $BUILDROOT
-    wget https://cmake.org/files/v3.6/cmake-3.6.1.tar.gz
-    tar xf cmake-3.6.1.tar.gz
-    rm cmake-3.6.1.tar.gz
-    cd cmake-3.6.1
-    ./bootstrap && make -j && make install
-
-    # Build Ninja
-    cd $BUILDROOT
-    git clone https://github.com/ninja-build/ninja.git && cd ninja
-    ./configure.py --bootstrap && cp ninja /usr/local/bin
-
-    # Build LLVM + Clang
-    cd $BUILDROOT && rm -rf /ninja
-    wget http://llvm.org/releases/3.9.0/llvm-3.9.0.src.tar.xz
-    tar xf llvm-3.9.0.src.tar.xz && rm llvm-3.9.0.src.tar.xz
-    cd llvm-3.9.0.src/tools
-    wget http://llvm.org/releases/3.9.0/cfe-3.9.0.src.tar.xz
-    tar xf cfe-3.9.0.src.tar.xz && rm cfe-3.9.0.src.tar.xz
-    mkdir $BUILDROOT/llvmbuild
-    cd $BUILDROOT/llvmbuild
-    cmake -G "Ninja" -DCMAKE_BUILD_TYPE=release ../llvm-3.9.0.src
-    ninja && ninja install
-
-### Fedora (release 25 and later):
-
-    yum install git clang cmake python-pip opencv-devel libcurl-devel sox-devel python-devel python-opencv
-
-    mkdir -p /usr/lib/rpm/redhat/ && touch /usr/lib/rpm/redhat/redhat-hardened-ld # Because of a Fedora bug in libtool
+Please take a look at [distributed documentation](doc/source/service.rst).
 
 ## Code coverage
 
@@ -122,7 +86,7 @@ Now continue on to the [user guide](http://aeon.nervanasys.com/index.html/user_g
 
 # Documentation
 
-The complete documentation for aeon is available [here](aeon.nervanasys.com).
+The complete documentation for aeon is available [here](http://aeon.nervanasys.com).
 
 # Support
 

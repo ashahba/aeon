@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2017 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -31,7 +31,6 @@
 
 namespace nervana
 {
-    // class buffer_batch;
     class buffer_fixed_size_elements;
     class fixed_buffer_map;
     class encoded_record;
@@ -153,15 +152,19 @@ private:
 class nervana::buffer_fixed_size_elements
 {
 public:
+    explicit buffer_fixed_size_elements() {}
     explicit buffer_fixed_size_elements(const shape_type& shp_tp,
                                         size_t            batch_size,
                                         bool              pinned = false);
-
     virtual ~buffer_fixed_size_elements();
 
     explicit buffer_fixed_size_elements(const buffer_fixed_size_elements&);
+    buffer_fixed_size_elements(buffer_fixed_size_elements&&);
+    buffer_fixed_size_elements& operator=(buffer_fixed_size_elements&&) noexcept;
+    void move(buffer_fixed_size_elements& second);
 
-    virtual void allocate();
+    void        allocate();
+    void        deallocate();
     const char* get_item(size_t index) const;
     char* get_item(size_t index);
     cv::Mat get_item_as_mat(size_t index, bool channel_major = false) const;
@@ -170,9 +173,10 @@ public:
     size_t            size() const { return m_size; }
     size_t            get_stride() const { return m_stride; }
     const shape_type& get_shape_type() const { return m_shape_type; }
-protected:
-    buffer_fixed_size_elements() = delete;
+    std::ostream& serialize(std::ostream& out) const;
+    std::istream& deserialize(std::istream& in);
 
+protected:
     char*      m_data{nullptr};
     shape_type m_shape_type;
     size_t     m_size{0};
@@ -190,6 +194,23 @@ public:
                      bool   pinned = false)
     {
         add_items(write_sizes, batch_size, pinned);
+    }
+
+    fixed_buffer_map(fixed_buffer_map&& buffer)
+    {
+        std::swap(m_data, buffer.m_data);
+        std::swap(m_names, buffer.m_names);
+    }
+
+    fixed_buffer_map& operator=(fixed_buffer_map&& buffer) noexcept
+    {
+        clear();
+        m_data  = std::move(buffer.m_data);
+        m_names = std::move(buffer.m_names);
+        buffer.m_data.clear();
+        buffer.m_names.clear();
+
+        return *this;
     }
 
     void add_items(const std::vector<std::pair<std::string, shape_type>>& write_sizes,
@@ -212,15 +233,16 @@ public:
             std::make_pair(name, new buffer_fixed_size_elements(shp_tp, batch_size, pinned)));
     }
 
-    ~fixed_buffer_map()
+    void clear()
     {
         for (auto buf : m_data)
-        {
             delete buf.second;
-        }
+        m_data.clear();
+        m_names.clear();
     }
 
-    const std::vector<std::string>& get_names() { return m_names; }
+    ~fixed_buffer_map() { clear(); }
+    const std::vector<std::string>& get_names() const { return m_names; }
     const buffer_fixed_size_elements* operator[](const std::string& name) const
     {
         auto it = std::find_if(m_data.begin(), m_data.end(), [&](decltype(*m_data.begin())& v) {
@@ -244,7 +266,10 @@ public:
               size_t            batch_size,
               bool              transpose);
 
-    size_t size() const { return m_data.size(); }
+    size_t        size() const { return m_data.size(); }
+    std::ostream& serialize(std::ostream& out) const;
+    std::istream& deserialize(std::istream& in);
+
 private:
     fixed_buffer_map(const fixed_buffer_map&) = delete;
 
@@ -254,3 +279,6 @@ private:
     std::vector<std::string> m_names;
     std::vector<std::pair<std::string, buffer_fixed_size_elements*>> m_data;
 };
+
+std::ostream& operator<<(std::ostream& out, const nervana::fixed_buffer_map& obj);
+std::istream& operator>>(std::istream& in, nervana::fixed_buffer_map& obj);

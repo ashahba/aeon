@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -24,7 +24,7 @@
 using namespace nervana;
 using namespace std;
 
-batch_iterator::batch_iterator(block_manager* blkl, size_t batch_size)
+batch_iterator::batch_iterator(shared_ptr<block_manager> blkl, size_t batch_size)
     : async_manager<encoded_record_list, encoded_record_list>(blkl, "batch_iterator")
     , m_batch_size(batch_size)
     , m_element_count(blkl->elements_per_record())
@@ -84,7 +84,7 @@ encoded_record_list* batch_iterator::filler()
     return rc;
 }
 
-batch_iterator_fbm::batch_iterator_fbm(batch_decoder*                             blkl,
+batch_iterator_fbm::batch_iterator_fbm(shared_ptr<batch_decoder>                  blkl,
                                        size_t                                     batch_size,
                                        const std::shared_ptr<provider_interface>& prov,
                                        bool                                       transpose)

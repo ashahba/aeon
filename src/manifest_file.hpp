@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -97,7 +97,7 @@ protected:
 private:
     void generate_subset(std::vector<std::vector<std::string>>&, float subset_fraction);
 
-    const std::string                m_source_filename;
+    std::string                      m_source_filename;
     std::vector<std::vector<record>> m_block_list;
     CryptoPP::CRC32C                 m_crc_engine;
     uint32_t                         m_computed_crc;

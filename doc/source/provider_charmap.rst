@@ -1,5 +1,5 @@
 .. ---------------------------------------------------------------------------
-.. Copyright 2017 Nervana Systems Inc.
+.. Copyright 2017 Intel(R) Nervana(TM)
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
 .. You may obtain a copy of the License at
@@ -57,7 +57,7 @@ Transcription provisioning can be configured using the following parameters:
                             "max_length": 25}
 
     aeon_config = {"etl": (transcription_config),
-                   "manifest_filename": "/path/to/manifest.csv",
+                   "manifest_filename": "/path/to/manifest.tsv",
                    "batch_size": minibatch_size}
 
 

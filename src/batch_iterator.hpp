@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -37,7 +37,7 @@ namespace nervana
 class nervana::batch_iterator : public async_manager<encoded_record_list, encoded_record_list>
 {
 public:
-    batch_iterator(block_manager*, size_t batch_size);
+    batch_iterator(std::shared_ptr<block_manager>, size_t batch_size);
     ~batch_iterator() { finalize(); }
     encoded_record_list* filler() override;
 
@@ -58,7 +58,7 @@ private:
 class nervana::batch_iterator_fbm : public async_manager<fixed_buffer_map, fixed_buffer_map>
 {
 public:
-    batch_iterator_fbm(batch_decoder*                             blkl,
+    batch_iterator_fbm(std::shared_ptr<batch_decoder>             blkl,
                        size_t                                     batch_size,
                        const std::shared_ptr<provider_interface>& prov,
                        bool                                       transpose);

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -25,11 +25,23 @@
 #include "loader.hpp"
 #include "log.hpp"
 #include "web_app.hpp"
+#include "manifest_nds.hpp"
+
+#if defined(ENABLE_AEON_SERVICE)
+#include "client/loader_remote.hpp"
+#include "client/curl_connector.hpp"
+#include "client/remote_config.hpp"
+#if defined(ENABLE_OPENFABRICS_CONNECTOR)
+#include "client/ofi_connector.hpp"
+#endif
+#endif
 
 using namespace std;
 using namespace nervana;
 
-loader_config::loader_config(nlohmann::json js)
+using nlohmann::json;
+
+loader_config::loader_config(json js)
 {
     if (js.is_null())
     {
@@ -71,22 +83,22 @@ void loader_config::validate()
     }
 }
 
-loader::loader(const std::string& config_string)
+loader_local::loader_local(const std::string& config_string)
     : m_current_iter(*this, false)
     , m_end_iter(*this, true)
 {
-    auto tmp = nlohmann::json::parse(config_string);
+    auto tmp = json::parse(config_string);
     initialize(tmp);
 }
 
-loader::loader(nlohmann::json& config_json)
+loader_local::loader_local(const json& config_json)
     : m_current_iter(*this, false)
     , m_end_iter(*this, true)
 {
     initialize(config_json);
 }
 
-loader::~loader()
+loader_local::~loader_local()
 {
     if (m_debug_web_app)
     {
@@ -94,7 +106,7 @@ loader::~loader()
     }
 }
 
-void loader::initialize(nlohmann::json& config_json)
+void loader_local::initialize(const json& config_json)
 {
     string config_string = config_json.dump();
     m_current_config     = config_json;
@@ -104,21 +116,44 @@ void loader::initialize(nlohmann::json& config_json)
     // shared_ptr<manifest> base_manifest;
     sox_format_init();
 
-    // the manifest defines which data should be included in the dataset
-    m_manifest = make_shared<manifest_file>(lcfg.manifest_filename,
-                                            lcfg.shuffle_manifest,
-                                            lcfg.manifest_root,
-                                            lcfg.subset_fraction,
-                                            lcfg.block_size,
-                                            lcfg.random_seed);
-
-    // TODO: make the constructor throw this error
-    if (m_manifest->record_count() == 0)
+    if (nervana::manifest_nds::is_likely_json(lcfg.manifest_filename))
     {
-        throw std::runtime_error("manifest file is empty");
+        m_manifest_nds = nervana::manifest_nds_builder()
+                             .filename(lcfg.manifest_filename)
+                             .block_size(lcfg.block_size)
+                             .elements_per_record(2)
+                             .shuffle(lcfg.shuffle_manifest)
+                             .seed(lcfg.random_seed)
+                             .make_shared();
+
+        m_block_loader = std::make_shared<block_loader_nds>(m_manifest_nds, lcfg.block_size);
     }
+    else
+    {
+        // the manifest defines which data should be included in the dataset
+        m_manifest_file = make_shared<manifest_file>(lcfg.manifest_filename,
+                                                     lcfg.shuffle_manifest,
+                                                     lcfg.manifest_root,
+                                                     lcfg.subset_fraction,
+                                                     lcfg.block_size,
+                                                     lcfg.random_seed);
+
+        // TODO: make the constructor throw this error
+        if (record_count() == 0)
+        {
+            throw std::runtime_error("manifest file is empty");
+        }
+        m_block_loader = make_shared<block_loader_file>(m_manifest_file, lcfg.block_size);
+    }
+
+    m_block_manager = make_shared<block_manager>(m_block_loader,
+                                                 lcfg.block_size,
+                                                 lcfg.cache_directory,
+                                                 lcfg.shuffle_enable,
+                                                 lcfg.random_seed);
+
     // Default ceil div to get number of batches
-    m_batch_count_value = (m_manifest->record_count() + m_batch_size - 1) / m_batch_size;
+    m_batch_count_value = (record_count() + m_batch_size - 1) / m_batch_size;
     if (lcfg.iteration_mode == "ONCE")
     {
         m_batch_mode = BatchMode::ONCE;
@@ -133,14 +168,6 @@ void loader::initialize(nlohmann::json& config_json)
         m_batch_count_value = lcfg.iteration_mode_count;
     }
 
-    m_block_loader = make_shared<block_loader_file>(m_manifest.get(), lcfg.block_size);
-
-    m_block_manager = make_shared<block_manager>(m_block_loader.get(),
-                                                 lcfg.block_size,
-                                                 lcfg.cache_directory,
-                                                 lcfg.shuffle_enable,
-                                                 lcfg.random_seed);
-
     m_provider = provider_factory::create(config_json);
 
     unsigned int threads_num = lcfg.decode_thread_count != 0 ? lcfg.decode_thread_count
@@ -148,17 +175,17 @@ void loader::initialize(nlohmann::json& config_json)
 
     const int decode_size =
         lcfg.batch_size * ((threads_num * m_input_multiplier - 1) / lcfg.batch_size + 1);
-    m_batch_iterator = make_shared<batch_iterator>(m_block_manager.get(), decode_size);
+    m_batch_iterator = make_shared<batch_iterator>(m_block_manager, decode_size);
 
-    m_decoder = make_shared<batch_decoder>(m_batch_iterator.get(),
+    m_decoder = make_shared<batch_decoder>(m_batch_iterator,
                                            decode_size,
                                            lcfg.decode_thread_count,
                                            lcfg.pinned,
                                            m_provider,
                                            lcfg.random_seed);
 
-    m_final_stage = make_shared<batch_iterator_fbm>(
-        m_decoder.get(), lcfg.batch_size, m_provider, !lcfg.batch_major);
+    m_final_stage =
+        make_shared<batch_iterator_fbm>(m_decoder, lcfg.batch_size, m_provider, !lcfg.batch_major);
 
     m_output_buffer_ptr = m_final_stage->next();
 
@@ -167,21 +194,19 @@ void loader::initialize(nlohmann::json& config_json)
         m_debug_web_app = make_shared<web_app>(lcfg.web_server_port);
         m_debug_web_app->register_loader(this);
     }
-
-    m_current_iter.m_empty_buffer.add_items(get_names_and_shapes(), (size_t)batch_size());
 }
 
-const vector<string>& loader::get_buffer_names() const
+const vector<string>& loader_local::get_buffer_names() const
 {
     return m_provider->get_buffer_names();
 }
 
-const vector<pair<string, shape_type>>& loader::get_names_and_shapes() const
+const vector<pair<string, shape_type>>& loader_local::get_names_and_shapes() const
 {
     return m_provider->get_output_shapes();
 }
 
-const shape_t& loader::get_shape(const string& name) const
+const shape_t& loader_local::get_shape(const string& name) const
 {
     return m_provider->get_output_shape(name).get_shape();
 }
@@ -226,16 +251,18 @@ bool loader::iterator::operator!=(const iterator& other) const
 // Whether or not this strictly positional iterator has reached the end
 bool loader::iterator::positional_end() const
 {
-    return !m_is_end && (position() >= m_current_loader.m_batch_count_value);
+    return !m_is_end && (position() >= m_current_loader.batch_count());
 }
 
 const fixed_buffer_map& loader::iterator::operator*() const
 {
-    return m_current_loader.m_output_buffer_ptr ? *m_current_loader.m_output_buffer_ptr
-                                                : m_empty_buffer;
+    if (m_current_loader.get_output_buffer())
+        return *m_current_loader.get_output_buffer();
+    else
+        throw std::runtime_error("empty buffer");
 }
 
-void loader::increment_position()
+void loader_local::increment_position()
 {
     m_output_buffer_ptr = m_final_stage->next();
     m_position++;
@@ -246,3 +273,68 @@ void loader::increment_position()
         m_position = 0;
     }
 }
+
+std::unique_ptr<loader> loader_factory::get_loader(const std::string& config)
+{
+    json parsed_config = json::parse(config);
+    return get_loader(parsed_config);
+}
+
+std::unique_ptr<loader> loader_factory::get_loader(const json& config)
+{
+#if defined(ENABLE_AEON_SERVICE)
+    if (remote_version(config))
+    {
+        return create_loader_remote(config);
+    }
+#endif
+    return unique_ptr<loader_local>(new loader_local(config));
+}
+
+#if defined(ENABLE_AEON_SERVICE)
+
+bool loader_factory::remote_version(const json& config)
+{
+    try
+    {
+        config.at("remote");
+    }
+    catch (json::out_of_range)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+unique_ptr<loader> loader_factory::create_loader_remote(const json& js)
+{
+    remote_config config(js.at("remote"));
+
+    shared_ptr<http_connector> http_connector_obj =
+        make_shared<curl_connector>(config.address, config.port);
+#if defined(ENABLE_OPENFABRICS_CONNECTOR)
+    if (!config.rdma_address.empty() && config.rdma_port != 0)
+    {
+        INFO << "Using OFI library to fetch batches via RDMA.";
+        auto ofi_ptr = new ofi_connector(config.rdma_address, config.rdma_port, http_connector_obj);
+        http_connector_obj = shared_ptr<ofi_connector>(ofi_ptr);
+    }
+#endif
+    shared_ptr<service> service_obj;
+    if (config.async)
+    {
+        auto service_connector_obj    = make_shared<service_connector>(http_connector_obj);
+        auto service_async_source_obj = make_shared<service_async_source>(service_connector_obj);
+        service_obj                   = make_shared<service_async>(service_async_source_obj);
+        INFO << "Using asynchronous batch fetching.";
+    }
+    else
+    {
+        service_obj = make_shared<service_connector>(http_connector_obj);
+    }
+
+    loader_remote* new_loader = new loader_remote(service_obj, js);
+    return unique_ptr<loader_remote>(new_loader);
+}
+#endif

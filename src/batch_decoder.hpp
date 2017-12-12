@@ -1,5 +1,5 @@
 /*
- Copyright 2017 Nervana Systems Inc.
+ Copyright 2017 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -30,7 +30,7 @@ namespace nervana
 class nervana::batch_decoder : public async_manager<encoded_record_list, fixed_buffer_map>
 {
 public:
-    batch_decoder(batch_iterator*                            b_itor,
+    batch_decoder(std::shared_ptr<batch_iterator>            b_itor,
                   size_t                                     batch_size,
                   uint32_t                                   thread_count,
                   bool                                       pinned,

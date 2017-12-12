@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -18,6 +18,7 @@
 #include <clocale>
 
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 #include "gen_image.hpp"
 #include "file_util.hpp"
@@ -177,7 +178,7 @@ extern "C" int main(int argc, char** argv)
     CreateImageDataset();
     test_cache_directory = nervana::file_util::make_temp_directory();
 
-    ::testing::InitGoogleTest(&argc, argv_vector.data());
+    ::testing::InitGoogleMock(&argc, argv_vector.data());
     int rc = RUN_ALL_TESTS();
 
     nervana::file_util::remove_directory(test_cache_directory);

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -89,3 +89,26 @@ nlohmann::json create_metadata(const vector<nlohmann::json>& boxes, int width, i
     j["size"]        = {{"depth", 3}, {"height", height}, {"width", width}};
     return j;
 }
+
+fixed_buffer_map& get_fixed_buffer_map()
+{
+    auto image_shape = shape_type(vector<size_t>{10, 10, 3}, output_type("uint8_t"));
+    auto label_shape = shape_type(vector<size_t>{1}, output_type("uint32_t"));
+    auto write_sizes =
+        std::vector<std::pair<string, shape_type>>{{"image", image_shape}, {"label", label_shape}};
+    size_t                  batch_size = 1;
+    static fixed_buffer_map result(write_sizes, batch_size);
+    return result;
+}
+
+#if defined(ENABLE_AEON_SERVICE)
+names_and_shapes get_names_and_shapes()
+{
+    names_and_shapes nas;
+    shape_type       s1{{1, 2}, {"int8_t"}};
+    shape_type       s2{{1, 2, 3, 4, 5}, {"int32_t"}};
+    nas.emplace_back("s1", s1);
+    nas.emplace_back("s2", s2);
+    return nas;
+}
+#endif /* ENABLE_AEON_SERVICE */

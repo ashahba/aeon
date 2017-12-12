@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -22,11 +22,11 @@
 using namespace std;
 using namespace nervana;
 
-nervana::block_manager::block_manager(block_loader_source* file_loader,
-                                      size_t               block_size,
-                                      const string&        cache_root,
-                                      bool                 enable_shuffle,
-                                      uint32_t             seed)
+nervana::block_manager::block_manager(shared_ptr<block_loader_source> file_loader,
+                                      size_t                          block_size,
+                                      const string&                   cache_root,
+                                      bool                            enable_shuffle,
+                                      uint32_t                        seed)
     : async_manager<encoded_record_list, encoded_record_list>{file_loader, "block_manager"}
     , m_current_block_number{0}
     , m_block_size{file_loader->block_size()}

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -147,17 +147,6 @@ TEST(char_map, test)
             loader.load({outbuf}, decoded);
 
             ASSERT_EQ(outbuf[max_length - 1], 38);
-        }
-
-        // Check zero padding
-        {
-            string short_str = "now✓";
-            auto   decoded   = extractor.extract(&short_str[0], short_str.size());
-            loader.load({outbuf}, decoded);
-            for (int i = 4; i < max_length; i++)
-            {
-                ASSERT_EQ(outbuf[i], 0);
-            }
         }
     }
 }

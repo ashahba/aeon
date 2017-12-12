@@ -1,5 +1,5 @@
 .. ---------------------------------------------------------------------------
-.. Copyright 2017 Nervana Systems Inc.
+.. Copyright 2017 Intel(R) Nervana(TM)
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
 .. You may obtain a copy of the License at
@@ -14,11 +14,12 @@
 .. ---------------------------------------------------------------------------
 
 Faster-RCNN Localization
-============
+=========================
 
 The object localization provider module (``type=localization_rcnn``) is designed to work with the Faster-RCNN model. The manifest should include paths to both the image but also the bounding box annotations:
 
 .. code-block:: bash
+
     @FILE	FILE
     /image_dir/image0001.jpg	/annotations/0001.json
     /image_dir/image0002.jpg	/annotations/0002.json

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -120,6 +120,12 @@ string network_client::metadata_url()
     return ss.str();
 }
 
+manifest_nds_builder& manifest_nds_builder::filename(const std::string& filename)
+{
+    parse_json(filename);
+    return *this;
+}
+
 manifest_nds_builder& manifest_nds_builder::base_url(const std::string& url)
 {
     m_base_url = url;
@@ -174,6 +180,51 @@ manifest_nds_builder& manifest_nds_builder::seed(uint32_t seed)
     return *this;
 }
 
+void manifest_nds_builder::parse_json(const std::string& filename)
+{
+    // parse json
+    nlohmann::json j;
+    try
+    {
+        ifstream ifs(filename);
+        ifs >> j;
+    }
+    catch (const std::exception& ex)
+    {
+        stringstream ss;
+        ss << "Error while parsing manifest json: " << filename << " : ";
+        ss << ex.what();
+        throw std::runtime_error(ss.str());
+    }
+
+    // extract manifest params from parsed json
+    try
+    {
+        interface::config::parse_value(m_base_url, "url", j, interface::config::mode::REQUIRED);
+
+        auto val = j.find("params");
+        if (val != j.end())
+        {
+            nlohmann::json params = *val;
+            interface::config::parse_value(
+                m_token, "token", params, interface::config::mode::REQUIRED);
+            interface::config::parse_value(
+                m_collection_id, "collection_id", params, interface::config::mode::REQUIRED);
+        }
+        else
+        {
+            throw std::runtime_error("couldn't find key 'params' in nds manifest file.");
+        }
+    }
+    catch (const std::exception& ex)
+    {
+        stringstream ss;
+        ss << "Error while pulling config out of manifest json: " << filename << " : ";
+        ss << ex.what();
+        throw std::runtime_error(ss.str());
+    }
+}
+
 manifest_nds manifest_nds_builder::create()
 {
     if (m_base_url == "")
@@ -204,6 +255,19 @@ manifest_nds manifest_nds_builder::create()
                         m_seed);
 }
 
+std::shared_ptr<manifest_nds> manifest_nds_builder::make_shared()
+{
+    return std::shared_ptr<manifest_nds>(new manifest_nds(m_base_url,
+                                                          m_token,
+                                                          m_collection_id,
+                                                          m_block_size,
+                                                          m_elements_per_record,
+                                                          m_shard_count,
+                                                          m_shard_index,
+                                                          m_shuffle,
+                                                          m_seed));
+}
+
 manifest_nds::manifest_nds(const std::string& base_url,
                            const std::string& token,
                            size_t             collection_id,
@@ -216,10 +280,7 @@ manifest_nds::manifest_nds(const std::string& base_url,
     : m_base_url(base_url)
     , m_token(token)
     , m_collection_id(collection_id)
-    , m_block_size(block_size)
     , m_elements_per_record(elements_per_record)
-    , m_shard_count(shard_count)
-    , m_shard_index(shard_index)
     , m_network_client{base_url, token, collection_id, block_size, shard_count, shard_index}
     , m_current_block_number{0}
     , m_shuffle{enable_shuffle}
@@ -370,7 +431,7 @@ void manifest_nds::load_metadata()
     {
         metadata = nlohmann::json::parse(json_str);
     }
-    catch (std::exception& ex)
+    catch (const std::exception& ex)
     {
         stringstream ss;
         ss << "exception parsing metadata from nds ";

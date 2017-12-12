@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -55,10 +55,44 @@ TEST(block_loader_nds, curl_stream)
     size_t block_size          = 16;
     size_t elements_per_record = 2;
 
+    shared_ptr<manifest_nds> client(manifest_nds_builder()
+                                        .base_url("http://127.0.0.1:5000")
+                                        .token("token")
+                                        .collection_id(1)
+                                        .block_size(block_size)
+                                        .elements_per_record(elements_per_record)
+                                        .make_shared());
+
+    stringstream stream;
+    client->m_network_client.get("http://127.0.0.1:5000/test_pattern/", stream);
+
+    stringstream expected;
+    for (int i = 0; i < 1024; ++i)
+    {
+        expected << "0123456789abcdef";
+    }
+    ASSERT_EQ(stream.str(), expected.str());
+}
+
+TEST(block_loader_nds, curl_stream_filename)
+{
+    size_t block_size          = 16;
+    size_t elements_per_record = 2;
+
+    nlohmann::json json;
+    json["url"]                     = "http://127.0.0.1:5000";
+    json["params"]["token"]         = "token";
+    json["params"]["collection_id"] = 1;
+    json["params"]["tag"]           = "train";
+
+    std::string   tmp_filename = nervana::file_util::tmp_filename();
+    std::ofstream ofs(tmp_filename);
+
+    json >> ofs;
+    ofs.close();
+
     manifest_nds client = manifest_nds_builder()
-                              .base_url("http://127.0.0.1:5000")
-                              .token("token")
-                              .collection_id(1)
+                              .filename(tmp_filename)
                               .block_size(block_size)
                               .elements_per_record(elements_per_record)
                               .create();
@@ -79,16 +113,16 @@ TEST(block_loader_nds, curl_stream_error)
     size_t block_size          = 16;
     size_t elements_per_record = 2;
 
-    manifest_nds client = manifest_nds_builder()
-                              .base_url("http://127.0.0.1:5000")
-                              .token("token")
-                              .collection_id(1)
-                              .block_size(block_size)
-                              .elements_per_record(elements_per_record)
-                              .create();
+    shared_ptr<manifest_nds> client(manifest_nds_builder()
+                                        .base_url("http://127.0.0.1:5000")
+                                        .token("token")
+                                        .collection_id(1)
+                                        .block_size(block_size)
+                                        .elements_per_record(elements_per_record)
+                                        .make_shared());
 
     stringstream stream;
-    EXPECT_THROW(client.m_network_client.get("http://127.0.0.1:5000/error", stream),
+    EXPECT_THROW(client->m_network_client.get("http://127.0.0.1:5000/error", stream),
                  std::runtime_error);
 }
 
@@ -97,17 +131,17 @@ TEST(block_loader_nds, record_count)
     size_t block_size          = 16;
     size_t elements_per_record = 2;
 
-    manifest_nds client = manifest_nds_builder()
-                              .base_url("http://127.0.0.1:5000")
-                              .token("token")
-                              .collection_id(1)
-                              .block_size(block_size)
-                              .elements_per_record(elements_per_record)
-                              .create();
+    shared_ptr<manifest_nds> client(manifest_nds_builder()
+                                        .base_url("http://127.0.0.1:5000")
+                                        .token("token")
+                                        .collection_id(1)
+                                        .block_size(block_size)
+                                        .elements_per_record(elements_per_record)
+                                        .make_shared());
 
     // 200 and 5 are hard coded in the mock nds server
-    ASSERT_EQ(client.record_count(), 200);
-    ASSERT_EQ(client.block_count(), 5);
+    ASSERT_EQ(client->record_count(), 200);
+    ASSERT_EQ(client->block_count(), 5);
 }
 
 TEST(block_loader_nds, cpio)
@@ -116,10 +150,55 @@ TEST(block_loader_nds, cpio)
     size_t elements_per_record = 2;
     size_t block_count         = 3;
 
+    shared_ptr<manifest_nds> client(manifest_nds_builder()
+                                        .base_url("http://127.0.0.1:5000")
+                                        .token("token")
+                                        .collection_id(1)
+                                        .block_size(block_size)
+                                        .elements_per_record(elements_per_record)
+                                        .make_shared());
+
+    size_t record_number = 0;
+    for (size_t block_number = 0; block_number < block_count; block_number++)
+    {
+        encoded_record_list* block = client->load_block(block_number);
+        ASSERT_EQ(block_size, block->size());
+
+        for (auto record : *block)
+        {
+            element_info info0(vector2string(record.element(0)));
+            element_info info1(vector2string(record.element(1)));
+
+            ASSERT_EQ(record_number, info0.record_number());
+            ASSERT_EQ(record_number, info1.record_number());
+            ASSERT_EQ(0, info0.element_number());
+            ASSERT_EQ(1, info1.element_number());
+
+            record_number++;
+        }
+    }
+}
+
+TEST(block_loader_nds, cpio_filename)
+{
+    size_t block_size          = 16;
+    size_t elements_per_record = 2;
+    size_t block_count         = 3;
+
+    nlohmann::json json;
+    json["url"]                     = "http://127.0.0.1:5000";
+    json["params"]["token"]         = "token";
+    json["params"]["collection_id"] = 1;
+    json["params"]["tag"]           = "train";
+
+    std::string   tmp_filename = nervana::file_util::tmp_filename();
+    std::ofstream ofs(tmp_filename);
+
+    json >> ofs;
+    ofs.close();
+
     manifest_nds client = manifest_nds_builder()
-                              .base_url("http://127.0.0.1:5000")
-                              .token("token")
-                              .collection_id(1)
+                              .filename(tmp_filename)
                               .block_size(block_size)
                               .elements_per_record(elements_per_record)
                               .create();

@@ -1,5 +1,5 @@
 /*
- Copyright 2016 Nervana Systems Inc.
+ Copyright 2016 Intel(R) Nervana(TM)
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -61,7 +61,7 @@ typedef array<int, 2> minibatch;
 class integer_batcher : public async_manager<int, minibatch>
 {
 public:
-    integer_batcher(data_source* d)
+    integer_batcher(shared_ptr<data_source> d)
         : async_manager<int, minibatch>(d, "test")
     {
     }
