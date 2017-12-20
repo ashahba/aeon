@@ -22,7 +22,7 @@ First grab Aeon's dependencies:
 
 ##### For Python 3.n
 
-    apt-get install python3-dev python3-pip
+    apt-get install python3-dev python3-pip python3-numpy
 
 ### CentOS (release 7.2 and later):
 
@@ -46,7 +46,7 @@ First grab Aeon's dependencies:
 
 ## Distributed Aeon
 
-Please take a look at [distributed documentation](doc/source/service.rst).
+Please take a look at [distributed documentation](http://aeon.nervanasys.com/index.html/service.html).
 
 ## Code coverage
 
